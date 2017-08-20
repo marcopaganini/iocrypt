@@ -2,6 +2,7 @@
 
 [![Build Status](https://travis-ci.org/marcopaganini/iocrypt.svg?branch=master)](https://travis-ci.org/marcopaganini/iocrypt)
 [![Go Report Card](https://goreportcard.com/badge/github.com/marcopaganini/iocrypt)](https://goreportcard.com/report/github.com/marcopaganini/iocrypt)
+[![GoDoc](https://godoc.org/github.com/marcopaganini/iocrypt?status.svg)](https://godoc.org/github.com/marcopaganini/iocrypt)
 
 ## I/O encryption/decryption library in Go.
 
