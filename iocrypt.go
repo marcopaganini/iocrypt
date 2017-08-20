@@ -26,7 +26,7 @@ import (
 )
 
 const (
-	// readChunkSize defines the size of the read buffer.
+	// readChunkSize defines the size of the read buffer (in bytes).
 	readChunkSize = 64 * (1 << 20)
 
 	// sizeLen holds the length of the field in the header (in bytes).
@@ -34,7 +34,7 @@ const (
 )
 
 // Encrypt encrypts data from an io.Reader into an io.Writer using the
-// specified key, and return the number of bytes written to the io.Writer.
+// specified key, and returns the number of bytes written to the io.Writer.
 func Encrypt(r io.Reader, w io.Writer, key []byte) (int, error) {
 	block, err := aes.NewCipher(key)
 	if err != nil {
@@ -92,7 +92,7 @@ func Encrypt(r io.Reader, w io.Writer, key []byte) (int, error) {
 }
 
 // Decrypt decrypts an encrypted data stream from an io.Reader into an
-// io.Writer using the specified key, and return the number of bytes written to
+// io.Writer using the specified key, and returns the number of bytes written to
 // the io.Writer. Nonces are read from the input stream.
 func Decrypt(r io.Reader, w io.Writer, key []byte) (int, error) {
 	block, err := aes.NewCipher(key)
