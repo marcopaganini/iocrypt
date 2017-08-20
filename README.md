@@ -1,5 +1,8 @@
 # iocrypt
 
+[![Build Status](https://travis-ci.org/marcopaganini/iocrypt.svg?branch=master)](https://travis-ci.org/marcopaganini/iocrypt)
+[![Go Report Card](https://goreportcard.com/badge/github.com/marcopaganini/iocrypt)](https://goreportcard.com/report/github.com/marcopaganini/iocrypt)
+
 ## I/O encryption/decryption library in Go.
 
 This is a simple library that allows I/O streams to be easily encrypted and
