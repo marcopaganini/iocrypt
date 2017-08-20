@@ -13,11 +13,18 @@ func TestIOCrypt(t *testing.T) {
 	casetests := []struct {
 		plain     []byte
 		crypt     []byte
+		useAES256 bool
 		wantError bool
 	}{
-		// Message under default chunk size.
+		// Message under default chunk size (AES128)
 		{
 			plain:     []byte("The quick brown fox jumps over the lazy dog 1234567890 times"),
+			wantError: false,
+		},
+		// Message under default chunk size (AES256)
+		{
+			plain:     []byte("The quick brown fox jumps over the lazy dog 1234567890 times"),
+			useAES256: true,
 			wantError: false,
 		},
 		// Invalid encrypted input.
@@ -27,12 +34,15 @@ func TestIOCrypt(t *testing.T) {
 		},
 	}
 
-	key, err := RandomBytes(16)
-	if err != nil {
-		t.Fatalf("Got error creating key, want no error")
-	}
-
 	for _, tt := range casetests {
+		key, err := RandomAES128Key()
+		if tt.useAES256 {
+			key, err = RandomAES256Key()
+		}
+		if err != nil {
+			t.Fatalf("Got error creating key, want no error")
+		}
+
 		cryptbuf := &bytes.Buffer{}
 		decryptbuf := &bytes.Buffer{}
 
@@ -54,7 +64,7 @@ func TestIOCrypt(t *testing.T) {
 			cryptbuf = bytes.NewBuffer(tt.crypt)
 		}
 
-		_, err := Decrypt(cryptbuf, decryptbuf, key)
+		_, err = Decrypt(cryptbuf, decryptbuf, key)
 		if tt.wantError {
 			if err == nil {
 				t.Fatalf("Got no error, want error")

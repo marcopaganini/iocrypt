@@ -46,7 +46,7 @@ func Encrypt(r io.Reader, w io.Writer, key []byte) (int, error) {
 	}
 
 	// Create a random nonce.
-	nonce, err := RandomBytes(gcm.NonceSize())
+	nonce, err := randomBytes(gcm.NonceSize())
 	if err != nil {
 		return 0, err
 	}
@@ -147,6 +147,16 @@ func Decrypt(r io.Reader, w io.Writer, key []byte) (int, error) {
 	return tbytes, nil
 }
 
+// RandomAES128Key returns a randomly generated AES128 key.
+func RandomAES128Key() ([]byte, error) {
+	return randomBytes(16)
+}
+
+// RandomAES256Key returns a randomly generated AES256 key.
+func RandomAES256Key() ([]byte, error) {
+	return randomBytes(32)
+}
+
 // packNonceAndSize packs the nonce, size and their CRC32 into a byte slice.
 func packNonceAndSize(nonce []byte, size int) []byte {
 	nlen := len(nonce)
@@ -185,8 +195,8 @@ func incNonce(nonce []byte) {
 	binary.LittleEndian.PutUint64(nonce, n)
 }
 
-// RandomBytes returns a byte slice of random bytes.
-func RandomBytes(n int) ([]byte, error) {
+// randomBytes returns a byte slice of random bytes.
+func randomBytes(n int) ([]byte, error) {
 	ret := make([]byte, n)
 	if _, err := io.ReadFull(rand.Reader, ret); err != nil {
 		return []byte{}, err
