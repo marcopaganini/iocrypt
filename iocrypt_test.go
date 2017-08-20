@@ -4,12 +4,13 @@ package iocrypt
 
 import (
 	"bytes"
+	"fmt"
 	"github.com/kylelemons/godebug/pretty"
+	"log"
 	"testing"
 )
 
 func TestIOCrypt(t *testing.T) {
-
 	casetests := []struct {
 		plain     []byte
 		crypt     []byte
@@ -79,4 +80,21 @@ func TestIOCrypt(t *testing.T) {
 			t.Errorf("diff: (-got +want)\n%s", diff)
 		}
 	}
+}
+
+func ExampleEncrypt() {
+	r := bytes.NewBufferString("Vanilla Plaintext")
+	w := &bytes.Buffer{}
+
+	key, err := RandomAES128Key()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	n, err := Encrypt(r, w, key)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("Wrote %d encrypted bytes\n", n)
+	// Output: Wrote 57 encrypted bytes
 }
