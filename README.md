@@ -13,8 +13,8 @@ data in chunks, allowing the use of large data sets.
 
 ## SUPER IMPORTANT DISCLAIMER
 
-**I'm NOT a cryptographer** and I've put together this in an afternoon. It uses
-the standard libraries to encrypt/decrypt a file in "chunks", so it should be
-safe. Use at your own risk. Feel free to review the code and report any
+**I am NOT a cryptographer** and I wrote this code in one afternoon. This library
+makes use of the the standard libraries to encrypt/decrypt a file in "chunks",
+so it _should_ be safe. Use at your own risk. Feel free to review the code and report any
 problems.
 
