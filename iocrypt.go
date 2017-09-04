@@ -92,9 +92,19 @@ func Encrypt(r io.Reader, w io.Writer, key []byte) (int, error) {
 }
 
 // Decrypt decrypts an encrypted data stream from an io.Reader into an
-// io.Writer using the specified key, and returns the number of bytes written to
-// the io.Writer. Nonces are read from the input stream.
+// io.Writer using the specified key, and returns the number of bytes written
+// to the io.Writer.
 func Decrypt(r io.Reader, w io.Writer, key []byte) (int, error) {
+	return DecryptN(r, w, key, 0)
+}
+
+// DecryptN decrypts an encrypted data stream from an io.Reader into an
+// io.Writer using the specified key, and returns the number of bytes written
+// to the io.Writer. The maximum length limits the number of bytes to read from
+// the input stream (including the encryption block headers.) If the maximum
+// length is set to zero, the function consumes all bytes in the input stream.
+// Nonces are read from the input stream.
+func DecryptN(r io.Reader, w io.Writer, key []byte, maxlen int) (int, error) {
 	block, err := aes.NewCipher(key)
 	if err != nil {
 		return 0, err
@@ -106,28 +116,41 @@ func Decrypt(r io.Reader, w io.Writer, key []byte) (int, error) {
 
 	header := make([]byte, gcm.NonceSize()+sizeLen+crc32.Size)
 
-	tbytes := 0
+	rbytes := 0
+	wbytes := 0
 
 	for {
+		// Break if we don't have enough bytes left to read the next header.
+		if maxlen > 0 && rbytes+len(header) > maxlen {
+			break
+		}
+
 		// Read header. When decrypting we need to read the header first to
 		// allocate the buffer for the encrypted payload following the header.
 		// It's not acceptable to have a short read in the header, so any error
 		// (other than EOF) causes the function to return.
-		_, err := io.ReadFull(r, header)
+		nbytes, err := io.ReadFull(r, header)
 		if err == io.EOF {
 			break
 		}
 		if err != nil {
 			return 0, err
 		}
+		rbytes += nbytes
+
 		nonce, payloadLen, err := unpackNonceAndSize(header, gcm.NonceSize())
 		if err != nil {
 			return 0, err
 		}
 
+		// Break if we don't have enough bytes left to read the next payload block.
+		if maxlen > 0 && rbytes+payloadLen > maxlen {
+			break
+		}
+
 		// Allocate buffer and decrypt payload.
 		payload := make([]byte, payloadLen)
-		_, err = io.ReadFull(r, payload)
+		nbytes, err = io.ReadFull(r, payload)
 		if err != nil {
 			return 0, err
 		}
@@ -135,16 +158,21 @@ func Decrypt(r io.Reader, w io.Writer, key []byte) (int, error) {
 		if err != nil {
 			return 0, err
 		}
+		rbytes += nbytes
 
 		// Write payload.
 		written, err := w.Write(payload)
 		if err != nil {
 			return 0, err
 		}
-		tbytes += written
+		wbytes += written
+	}
+	// If we have a specified maxlen, the number of read bytes must match exactly.
+	if maxlen > 0 && rbytes != maxlen {
+		return 0, fmt.Errorf("decoded %d bytes. Expected %d", rbytes, maxlen)
 	}
 
-	return tbytes, nil
+	return wbytes, nil
 }
 
 // RandomAES128Key returns a randomly generated AES128 key.

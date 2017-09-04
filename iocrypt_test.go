@@ -5,32 +5,66 @@ package iocrypt
 import (
 	"bytes"
 	"fmt"
-	"github.com/kylelemons/godebug/pretty"
 	"log"
 	"testing"
 )
 
 func TestIOCrypt(t *testing.T) {
 	casetests := []struct {
-		plain     []byte
-		crypt     []byte
-		useAES256 bool
-		wantError bool
+		plainLen               int  // Generate random plaintext of this length if != 0.
+		cryptLen               int  // Generate random crypttext of this length if != 0.
+		forceDecryptMaxLen     bool // force decryptMaxLen bytes on decrypt (0=all).
+		decryptMaxLen          int
+		forceDecryptBufPadding bool // If true, add some padding to decrypted text.
+		useAES256              bool
+		wantError              bool
 	}{
-		// Message under default chunk size (AES128)
+		// Message under default chunk size.
 		{
-			plain:     []byte("The quick brown fox jumps over the lazy dog 1234567890 times"),
+			plainLen:  100,
 			wantError: false,
 		},
-		// Message under default chunk size (AES256)
+		// Message under default chunk size (AES256).
 		{
-			plain:     []byte("The quick brown fox jumps over the lazy dog 1234567890 times"),
+			plainLen:  100,
 			useAES256: true,
 			wantError: false,
 		},
+		// Message over default chunk size.
+		{
+			plainLen:  readChunkSize*2 + 100,
+			wantError: false,
+		},
+		// Max number of encrypted bytes == 0 (read entire input stream).
+		{
+			plainLen:           100,
+			forceDecryptMaxLen: true,
+			decryptMaxLen:      0,
+			wantError:          false,
+		},
+		// Max number of encrypted bytes < header length (24), fail.
+		{
+			plainLen:           100,
+			forceDecryptMaxLen: true,
+			decryptMaxLen:      20,
+			wantError:          true,
+		},
+		// Max number of encrypted bytes < header+payload length, fail.
+		{
+			plainLen:           100,
+			forceDecryptMaxLen: true,
+			decryptMaxLen:      30,
+			wantError:          true,
+		},
+		// Force a decrypt buffer with trailing contents (should be ignored since we use size).
+		{
+			plainLen:               100,
+			forceDecryptBufPadding: true,
+			wantError:              false,
+		},
 		// Invalid encrypted input.
 		{
-			crypt:     []byte("Totally invalid encrypted input"),
+			cryptLen:  100,
 			wantError: true,
 		},
 	}
@@ -47,25 +81,46 @@ func TestIOCrypt(t *testing.T) {
 		cryptbuf := &bytes.Buffer{}
 		decryptbuf := &bytes.Buffer{}
 
-		if tt.plain != nil {
-			_, err := Encrypt(bytes.NewBuffer(tt.plain), cryptbuf, key)
-			if tt.wantError {
-				if err == nil {
-					t.Fatalf("Got no error, want error")
-				}
-				continue
+		// Generate plaintext of specified size
+		var plaintext []byte
+		if tt.plainLen > 0 {
+			plaintext = make([]byte, tt.plainLen)
+			for i := 0; i < len(plaintext); i++ {
+				plaintext[i] = byte(0x41 + (i % 26))
 			}
+		}
+
+		cryptSize := 0
+		if tt.plainLen > 0 {
+			cryptSize, err = Encrypt(bytes.NewBuffer(plaintext), cryptbuf, key)
 			if err != nil {
 				t.Fatalf("Got error %q want no error", err)
 			}
 		}
 
 		// Crypttext override.
-		if tt.crypt != nil {
-			cryptbuf = bytes.NewBuffer(tt.crypt)
+		if tt.cryptLen > 0 {
+			crypttext := make([]byte, tt.cryptLen)
+			for i := 0; i < len(crypttext); i++ {
+				crypttext[i] = byte(0x41 + (i % 26))
+			}
+			cryptbuf = bytes.NewBuffer(crypttext)
+		}
+		// cryptSize override.
+		if tt.forceDecryptMaxLen {
+			cryptSize = tt.decryptMaxLen
 		}
 
-		_, err = Decrypt(cryptbuf, decryptbuf, key)
+		// Make a copy of buffer and add 100 bytes of padding if requested.
+		// This is useful to make sure we're not reading past the number of
+		// requested bytes.
+		if tt.forceDecryptBufPadding {
+			b := make([]byte, cryptbuf.Len()+100)
+			copy(b, cryptbuf.Bytes())
+			cryptbuf = bytes.NewBuffer(b)
+		}
+
+		_, err = DecryptN(cryptbuf, decryptbuf, key, cryptSize)
 		if tt.wantError {
 			if err == nil {
 				t.Fatalf("Got no error, want error")
@@ -76,8 +131,12 @@ func TestIOCrypt(t *testing.T) {
 			t.Fatalf("Got error %q want no error", err)
 		}
 
-		if diff := pretty.Compare(decryptbuf.Bytes(), tt.plain); diff != "" {
-			t.Errorf("diff: (-got +want)\n%s", diff)
+		if !bytes.Equal(decryptbuf.Bytes(), plaintext) {
+			// Suppress large outputs
+			if len(plaintext) > 256 {
+				plaintext = []byte("(suppressed)")
+			}
+			t.Errorf("diff: plaintext %q does not match encrypted version\n", plaintext)
 		}
 	}
 }
