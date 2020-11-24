@@ -1,12 +1,13 @@
 #!/bin/bash
-# Test Go formatting compliance with:
-# - gofmt -s
-# - golint
-# - go vet
+# Basic golang code checks:
+#   - gofmt -s
+#   - golint
+#   - go vet
 #
 # Needs:
-# golint: go get -u github.com/golang/lint/golint
+#   golint: go get -u golang.org/x/lint/golint
 
+# shellcheck disable=SC2064
 TMPFILE=$(mktemp)
 trap "rm -f $TMPFILE" EXIT
 
@@ -17,7 +18,7 @@ find . -type f -name '*.go' -exec gofmt -s -l {} \; >"$TMPFILE"
 # Error out if any files need formatting.
 if grep -q . "$TMPFILE"; then
   echo "ERROR: The following files need formatting with gofmt -s:"
-  cat $TMPFILE
+  cat "$TMPFILE"
   exit 1
 fi
 
